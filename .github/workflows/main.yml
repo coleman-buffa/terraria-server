@@ -25,4 +25,4 @@ jobs:
         context: .
         file: ./DockerFile
         push: true
-        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/simplewhale:latest
+        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/terraria-server:latest
