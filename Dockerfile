@@ -25,11 +25,9 @@ RUN mkdir /tmp/terraria && \
 
 COPY run-vanilla.sh /vanilla/run.sh
 
-RUN chmod +x /vanilla/run.sh
-
 # Allow for external data
 VOLUME ["/config"]
 
 # Run the server
 WORKDIR /vanilla
-ENTRYPOINT ["run.sh"]
+ENTRYPOINT ["sh", "run.sh"]
