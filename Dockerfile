@@ -1,35 +1,38 @@
-FROM mono:slim
+FROM alpine:3.11.6 AS base
 
-# Update and install needed utils
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y curl nuget vim zip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --update-cache \
+    unzip
 
-# fix for favorites.json error
-RUN favorites_path="/root/My Games/Terraria" && mkdir -p "$favorites_path" && echo "{}" > "$favorites_path/favorites.json"
+# add the bootstrap file
+COPY bootstrap.sh /terraria-server/bootstrap.sh
 
-# Download and install Vanilla Server
-# ENV VANILLA_VERSION=1436
+ENV DL_LINK=https://terraria.org/api/download/pc-dedicated-server/terraria-server-1436.zip
+ENV DL_VERSION=1434
+ENV DL_FILE=terraria-server-1436.zip
 
-RUN mkdir /tmp/terraria && \
-    cd /tmp/terraria && \
-    curl -sL https://www.terraria.org/api/download/pc-dedicated-server/terraria-server-1436.zip --output terraria-server.zip && \
-    unzip -q terraria-server.zip && \
-    mv */Linux /vanilla && \
-    mv */Windows/serverconfig.txt /vanilla/serverconfig-default.txt && \
-    rm -R /tmp/* && \
-    chmod +x /vanilla/TerrariaServer* && \
-    if [ ! -f /vanilla/TerrariaServer ]; then echo "Missing /vanilla/TerrariaServer"; exit 1; fi
+ADD $DL_LINK /$DL_FILE
 
-COPY run-vanilla.sh /vanilla/run.sh
+RUN unzip /$DL_FILE -d /terraria && \
+    mv /terraria/$DL_VERSION/Linux/* /terraria-server && \
+    #Linux subfolder does not include any config text file, oddly.
+    mv /terraria/$DL_VERSION/Windows/serverconfig.txt /terraria-server/serverconfig-default.txt && \
+    chmod +x /terraria-server/TerrariaServer && \
+    chmod +x /terraria-server/TerrariaServer.bin.x86_64
 
-RUN chmod +x /vanilla/run.sh
+FROM mono:6.8.0.96-slim
 
-# Allow for external data
-VOLUME ["/config"]
+# documenting ports
+EXPOSE 7777
 
-# Run the server
-WORKDIR /vanilla
-ENTRYPOINT ["./run.sh"]
+# env used in the bootstrap
+ENV LOGPATH=/terraria-server/logs
+ENV WORLD_FILENAME=""
+
+VOLUME ["/root/.local/share/Terraria/Worlds", "/config", "/terraria-server/logs"]
+
+COPY --from=base /terraria-server/ /terraria-server/
+
+# Set working directory to server
+WORKDIR /terraria-server
+
+ENTRYPOINT [ "/bin/sh", "bootstrap.sh" ]
